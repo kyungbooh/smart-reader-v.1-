@@ -3,20 +3,14 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Smart Reader V15 Classroom</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<title>Smart Reader V16</title>
 
 <style>
 
 body{
 font-family:Arial;
-background:#f5f7ff;
+background:#f4f6ff;
 text-align:center;
-}
-
-h1{
-margin-top:10px;
 }
 
 #reader{
@@ -44,23 +38,10 @@ color:red;
 font-weight:bold;
 }
 
-.focus{
-background:black;
-color:white;
-}
-
-.focus #reader{
-font-size:140px;
-}
-
 #preview{
-margin-top:20px;
-font-size:24px;
-}
-
-#help{
-margin-top:10px;
-color:gray;
+margin-top:30px;
+font-size:28px;
+line-height:1.6;
 }
 
 </style>
@@ -69,21 +50,23 @@ color:gray;
 
 <body>
 
-<h1>Smart Reader V15</h1>
+<h1>Smart Reader V16</h1>
 
 <div id="reader">Ready</div>
 
 <textarea id="textInput">
-Yesterday / Tom / read / a book / quickly / in the library
+Yesterday Tom read a book quickly in the library.
 </textarea>
 
 <br>
 
+<button onclick="analyze()">AI Analyze</button> <button onclick="preview()">Preview</button>
+
+<br><br>
+
 <button onclick="start()">Start</button> <button onclick="pause()">Pause</button> <button onclick="stop()">Stop</button>
 
 <button onclick="stepNext()">Next ▶</button> <button onclick="stepPrev()">◀ Prev</button>
-
-<button onclick="preview()">Preview</button> <button onclick="focus()">Focus Mode</button>
 
 <br><br>
 
@@ -91,23 +74,7 @@ Speed
 
 <input type="range" min="400" max="4000" value="1800" id="speed">
 
-<br><br>
-
-<button onclick="tts()">TTS</button> <button onclick="makeQR()">QR Share</button>
-
 <div id="preview"></div>
-<div id="qrcode"></div>
-
-<div id="help">
-
-Keyboard
-Space = Start/Pause
-→ = Next
-← = Previous
-F = Focus
-R = Reset
-
-</div>
 
 <script>
 
@@ -239,6 +206,65 @@ showChunk()
 
 }
 
+function analyze(){
+
+let text=document.getElementById("textInput").value
+
+text=text.replace(/\./g,"")
+
+let words=text.split(" ")
+
+let subject=words[0]
+
+let verb=words[1]
+
+let rest=words.slice(2).join(" ")
+
+let obj=""
+let adv=""
+
+if(rest.includes("quickly")){
+
+obj=rest.replace("quickly","").trim()
+adv="quickly"
+
+}else{
+
+obj=rest
+
+}
+
+let chunk=subject+" / "+verb+" / "+obj
+
+if(adv!="") chunk+=" / "+adv
+
+document.getElementById("textInput").value=chunk
+
+}
+
+function rainbowColor(text){
+
+let t=text.toLowerCase().trim()
+
+if(["yesterday","today","tomorrow"].includes(t))
+return "<span style='color:purple'>"+text+"</span>"
+
+if(t.startsWith("in ") || t.startsWith("at ") || t.startsWith("on "))
+return "<span style='color:indigo'>"+text+"</span>"
+
+if(["quickly","slowly","carefully"].includes(t))
+return "<span style='color:blue'>"+text+"</span>"
+
+if(["read","eat","make","see","play"].includes(t))
+return "<span style='color:gold'>"+text+"</span>"
+
+if(text.split(" ").length>1 && !text.startsWith("in "))
+return "<span style='color:green'>"+text+"</span>"
+
+return "<span style='color:orange'>"+text+"</span>"
+
+}
+
 function preview(){
 
 parse()
@@ -246,96 +272,12 @@ parse()
 let html=""
 
 chunks.forEach(c=>{
-html+=c+"<br>"
+
+html+=rainbowColor(c)+"<br>"
+
 })
 
 document.getElementById("preview").innerHTML=html
-
-}
-
-function focus(){
-
-document.body.classList.toggle("focus")
-
-}
-
-function tts(){
-
-let text=document.getElementById("textInput").value.replace(/\//g," ")
-
-let utter=new SpeechSynthesisUtterance(text)
-
-utter.lang="en-US"
-
-speechSynthesis.speak(utter)
-
-}
-
-function makeQR(){
-
-let lesson=encodeURIComponent(document.getElementById("textInput").value)
-
-let url=location.href.split("?")[0]+"?lesson="+lesson
-
-document.getElementById("qrcode").innerHTML=""
-
-new QRCode(document.getElementById("qrcode"),{
-text:url,
-width:200,
-height:200
-})
-
-}
-
-document.addEventListener("keydown",function(e){
-
-if(e.code==="Space"){
-
-e.preventDefault()
-
-if(timer){
-
-paused=!paused
-
-}else{
-
-start()
-
-}
-
-}
-
-if(e.code==="ArrowRight"){
-
-stepNext()
-
-}
-
-if(e.code==="ArrowLeft"){
-
-stepPrev()
-
-}
-
-if(e.key==="f"){
-
-focus()
-
-}
-
-if(e.key==="r"){
-
-stop()
-
-}
-
-})
-
-if(location.search.includes("lesson=")){
-
-let lessonText=decodeURIComponent(location.search.split("lesson=")[1])
-
-document.getElementById("textInput").value=lessonText
 
 }
 
