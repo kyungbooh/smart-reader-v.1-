@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Smart Reader V10</title>
+<title>Smart Reader V15 Classroom</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -10,25 +11,31 @@
 
 body{
 font-family:Arial;
-background:#f5f7fb;
+background:#f5f7ff;
 text-align:center;
 }
 
+h1{
+margin-top:10px;
+}
+
 #reader{
-font-size:48px;
+font-size:110px;
 margin-top:120px;
-height:120px;
+height:160px;
+font-weight:bold;
 }
 
 textarea{
 width:80%;
 height:120px;
-font-size:16px;
+font-size:18px;
+margin-top:20px;
 }
 
 button{
-padding:10px 20px;
-margin:5px;
+padding:10px 16px;
+margin:6px;
 font-size:16px;
 }
 
@@ -37,8 +44,23 @@ color:red;
 font-weight:bold;
 }
 
-#qrcode{
+.focus{
+background:black;
+color:white;
+}
+
+.focus #reader{
+font-size:140px;
+}
+
+#preview{
 margin-top:20px;
+font-size:24px;
+}
+
+#help{
+margin-top:10px;
+color:gray;
 }
 
 </style>
@@ -47,37 +69,57 @@ margin-top:20px;
 
 <body>
 
-<h1>Smart Reader V10</h1>
+<h1>Smart Reader V15</h1>
 
 <div id="reader">Ready</div>
 
 <textarea id="textInput">
-The book / that I bought yesterday / is very interesting.
+Yesterday / Tom / read / a book / quickly / in the library
 </textarea>
 
 <br>
 
-<button onclick="startReading()">Start</button>
-<button onclick="stopReading()">Stop</button>
-<button onclick="speak()">TTS</button>
-<button onclick="makeQR()">Generate QR</button>
+<button onclick="start()">Start</button> <button onclick="pause()">Pause</button> <button onclick="stop()">Stop</button>
+
+<button onclick="stepNext()">Next ▶</button> <button onclick="stepPrev()">◀ Prev</button>
+
+<button onclick="preview()">Preview</button> <button onclick="focus()">Focus Mode</button>
 
 <br><br>
 
 Speed
-<input type="range" min="100" max="800" value="300" id="speed">
 
+<input type="range" min="400" max="4000" value="1800" id="speed">
+
+<br><br>
+
+<button onclick="tts()">TTS</button> <button onclick="makeQR()">QR Share</button>
+
+<div id="preview"></div>
 <div id="qrcode"></div>
+
+<div id="help">
+
+Keyboard
+Space = Start/Pause
+→ = Next
+← = Previous
+F = Focus
+R = Reset
+
+</div>
 
 <script>
 
 let chunks=[]
 let index=0
 let timer=null
+let paused=false
 
-function parseText(){
+function parse(){
 
 let text=document.getElementById("textInput").value
+
 chunks=text.split("/")
 
 }
@@ -98,7 +140,7 @@ word.substring(mid+1)
 
 }
 
-function renderChunk(chunk){
+function render(chunk){
 
 let words=chunk.trim().split(" ")
 
@@ -112,38 +154,112 @@ return result
 
 }
 
-function startReading(){
+function showChunk(){
 
-parseText()
+if(index<0) index=0
+if(index>=chunks.length) index=chunks.length-1
 
-index=0
+document.getElementById("reader").innerHTML=
+render(chunks[index])
 
-let speed=document.getElementById("speed").value
+}
 
-timer=setInterval(()=>{
+function run(){
+
+if(paused) return
+
+index++
 
 if(index>=chunks.length){
 
 clearInterval(timer)
 return
+
 }
 
-document.getElementById("reader").innerHTML=
-renderChunk(chunks[index])
+showChunk()
+
+}
+
+function start(){
+
+parse()
+
+if(timer) clearInterval(timer)
+
+index=0
+
+showChunk()
+
+let speed=document.getElementById("speed").value
+
+timer=setInterval(run,speed)
+
+paused=false
+
+}
+
+function pause(){
+
+paused=true
+
+}
+
+function stop(){
+
+clearInterval(timer)
+timer=null
+index=0
+paused=false
+document.getElementById("reader").innerHTML="Ready"
+
+}
+
+function stepNext(){
+
+if(chunks.length===0) parse()
 
 index++
 
-},speed)
+if(index>=chunks.length) index=chunks.length-1
+
+showChunk()
 
 }
 
-function stopReading(){
+function stepPrev(){
 
-clearInterval(timer)
+if(chunks.length===0) parse()
+
+index--
+
+if(index<0) index=0
+
+showChunk()
 
 }
 
-function speak(){
+function preview(){
+
+parse()
+
+let html=""
+
+chunks.forEach(c=>{
+html+=c+"<br>"
+})
+
+document.getElementById("preview").innerHTML=html
+
+}
+
+function focus(){
+
+document.body.classList.toggle("focus")
+
+}
+
+function tts(){
 
 let text=document.getElementById("textInput").value.replace(/\//g," ")
 
@@ -170,6 +286,50 @@ height:200
 })
 
 }
+
+document.addEventListener("keydown",function(e){
+
+if(e.code==="Space"){
+
+e.preventDefault()
+
+if(timer){
+
+paused=!paused
+
+}else{
+
+start()
+
+}
+
+}
+
+if(e.code==="ArrowRight"){
+
+stepNext()
+
+}
+
+if(e.code==="ArrowLeft"){
+
+stepPrev()
+
+}
+
+if(e.key==="f"){
+
+focus()
+
+}
+
+if(e.key==="r"){
+
+stop()
+
+}
+
+})
 
 if(location.search.includes("lesson=")){
 
