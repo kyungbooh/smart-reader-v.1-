@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Smart Reader V10</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f5f7fb;
+text-align:center;
+}
+
+#reader{
+font-size:48px;
+margin-top:120px;
+height:120px;
+}
+
+textarea{
+width:80%;
+height:120px;
+font-size:16px;
+}
+
+button{
+padding:10px 20px;
+margin:5px;
+font-size:16px;
+}
+
+.orp{
+color:red;
+font-weight:bold;
+}
+
+#qrcode{
+margin-top:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Smart Reader V10</h1>
+
+<div id="reader">Ready</div>
+
+<textarea id="textInput">
+The book / that I bought yesterday / is very interesting.
+</textarea>
+
+<br>
+
+<button onclick="startReading()">Start</button>
+<button onclick="stopReading()">Stop</button>
+<button onclick="speak()">TTS</button>
+<button onclick="makeQR()">Generate QR</button>
+
+<br><br>
+
+Speed
+<input type="range" min="100" max="800" value="300" id="speed">
+
+<div id="qrcode"></div>
+
+<script>
+
+let chunks=[]
+let index=0
+let timer=null
+
+function parseText(){
+
+let text=document.getElementById("textInput").value
+chunks=text.split("/")
+
+}
+
+function ORP(word){
+
+let mid=Math.floor(word.length/2)
+
+return word.substring(0,mid)
++
+"<span class='orp'>"
++
+word[mid]
++
+"</span>"
++
+word.substring(mid+1)
+
+}
+
+function renderChunk(chunk){
+
+let words=chunk.trim().split(" ")
+
+let result=""
+
+words.forEach(w=>{
+result+=ORP(w)+" "
+})
+
+return result
+
+}
+
+function startReading(){
+
+parseText()
+
+index=0
+
+let speed=document.getElementById("speed").value
+
+timer=setInterval(()=>{
+
+if(index>=chunks.length){
+
+clearInterval(timer)
+return
+}
+
+document.getElementById("reader").innerHTML=
+renderChunk(chunks[index])
+
+index++
+
+},speed)
+
+}
+
+function stopReading(){
+
+clearInterval(timer)
+
+}
+
+function speak(){
+
+let text=document.getElementById("textInput").value.replace(/\//g," ")
+
+let utter=new SpeechSynthesisUtterance(text)
+
+utter.lang="en-US"
+
+speechSynthesis.speak(utter)
+
+}
+
+function makeQR(){
+
+let lesson=encodeURIComponent(document.getElementById("textInput").value)
+
+let url=location.href.split("?")[0]+"?lesson="+lesson
+
+document.getElementById("qrcode").innerHTML=""
+
+new QRCode(document.getElementById("qrcode"),{
+text:url,
+width:200,
+height:200
+})
+
+}
+
+if(location.search.includes("lesson=")){
+
+let lessonText=decodeURIComponent(location.search.split("lesson=")[1])
+
+document.getElementById("textInput").value=lessonText
+
+}
+
+</script>
+
+</body>
+</html>
