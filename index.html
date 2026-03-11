@@ -3,20 +3,22 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Smart Reader V16</title>
+<title>Smart Reader V17</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
 
 <style>
 
 body{
 font-family:Arial;
-background:#f4f6ff;
+background:#f5f7ff;
 text-align:center;
 }
 
 #reader{
 font-size:110px;
-margin-top:120px;
-height:160px;
+margin-top:80px;
+height:150px;
 font-weight:bold;
 }
 
@@ -24,13 +26,19 @@ textarea{
 width:80%;
 height:120px;
 font-size:18px;
-margin-top:20px;
+margin-top:15px;
 }
 
 button{
 padding:10px 16px;
-margin:6px;
-font-size:16px;
+margin:5px;
+font-size:15px;
+}
+
+#preview{
+margin-top:30px;
+font-size:28px;
+line-height:1.7;
 }
 
 .orp{
@@ -38,10 +46,8 @@ color:red;
 font-weight:bold;
 }
 
-#preview{
-margin-top:30px;
-font-size:28px;
-line-height:1.6;
+.section{
+margin-top:20px;
 }
 
 </style>
@@ -50,25 +56,41 @@ line-height:1.6;
 
 <body>
 
-<h1>Smart Reader V16</h1>
+<h1>Smart Reader V17</h1>
 
 <div id="reader">Ready</div>
 
+<div class="section">
+
+<h3>Teacher Material Input</h3>
+
 <textarea id="textInput">
-Yesterday Tom read a book quickly in the library.
+Yesterday / Tom / read / a book / quickly / in the library
 </textarea>
 
 <br>
 
-<button onclick="analyze()">AI Analyze</button> <button onclick="preview()">Preview</button>
+<input type="file" id="txtFile" accept=".txt">
+<button onclick="loadTXT()">Load TXT</button>
 
-<br><br>
+<input type="file" id="pdfFile" accept=".pdf">
+<button onclick="loadPDF()">Load PDF</button>
+
+</div>
+
+<div class="section">
+
+<button onclick="preview()">Preview</button> <button onclick="analyze()">AI Analyze</button>
+
+</div>
+
+<div class="section">
 
 <button onclick="start()">Start</button> <button onclick="pause()">Pause</button> <button onclick="stop()">Stop</button>
 
 <button onclick="stepNext()">Next ▶</button> <button onclick="stepPrev()">◀ Prev</button>
 
-<br><br>
+</div>
 
 Speed
 
@@ -206,42 +228,6 @@ showChunk()
 
 }
 
-function analyze(){
-
-let text=document.getElementById("textInput").value
-
-text=text.replace(/\./g,"")
-
-let words=text.split(" ")
-
-let subject=words[0]
-
-let verb=words[1]
-
-let rest=words.slice(2).join(" ")
-
-let obj=""
-let adv=""
-
-if(rest.includes("quickly")){
-
-obj=rest.replace("quickly","").trim()
-adv="quickly"
-
-}else{
-
-obj=rest
-
-}
-
-let chunk=subject+" / "+verb+" / "+obj
-
-if(adv!="") chunk+=" / "+adv
-
-document.getElementById("textInput").value=chunk
-
-}
-
 function rainbowColor(text){
 
 let t=text.toLowerCase().trim()
@@ -278,6 +264,66 @@ html+=rainbowColor(c)+"<br>"
 })
 
 document.getElementById("preview").innerHTML=html
+
+}
+
+function analyze(){
+
+let text=document.getElementById("textInput").value
+
+text=text.replace(/\./g,"")
+
+let words=text.split(" ")
+
+if(words.length<3) return
+
+let subject=words[0]
+
+let verb=words[1]
+
+let rest=words.slice(2).join(" ")
+
+let chunk=subject+" / "+verb+" / "+rest
+
+document.getElementById("textInput").value=chunk
+
+}
+
+function loadTXT(){
+
+let file=document.getElementById("txtFile").files[0]
+
+let reader=new FileReader()
+
+reader.onload=function(e){
+
+document.getElementById("textInput").value=e.target.result
+
+}
+
+reader.readAsText(file)
+
+}
+
+async function loadPDF(){
+
+const file=document.getElementById("pdfFile").files[0]
+
+const arrayBuffer=await file.arrayBuffer()
+
+const pdf=await pdfjsLib.getDocument(arrayBuffer).promise
+
+const page=await pdf.getPage(1)
+
+const textContent=await page.getTextContent()
+
+let text=""
+
+textContent.items.forEach(item=>{
+text+=item.str+" "
+})
+
+document.getElementById("textInput").value=text
 
 }
 
