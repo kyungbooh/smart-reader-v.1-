@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<title>Smart Reader V22</title>
+
+<style>
+
+body{
+font-family:Arial;
+text-align:center;
+background:#f2f4f8;
+}
+
+#reader{
+
+font-size:42px;
+
+margin-top:150px;
+
+padding:40px;
+
+line-height:1.6;
+
+}
+
+textarea{
+
+width:90%;
+
+height:150px;
+
+font-size:16px;
+
+}
+
+button{
+
+font-size:18px;
+
+padding:12px 20px;
+
+margin:8px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>Smart Reader V22</h2>
+
+<textarea id="inputText"></textarea>
+
+<br>
+
+<button onclick="loadText()">Load</button>
+
+<button onclick="prevChunk()">Prev</button>
+
+<button onclick="nextChunk()">Next</button>
+
+<button onclick="speakChunk()">TTS</button>
+
+<div id="reader"></div>
+
+<script>
+
+let chunks=[]
+let currentIndex=0
+
+
+function loadText(){
+
+let text=document.getElementById("inputText").value
+
+chunks=parseChunks(text)
+
+currentIndex=0
+
+showChunk()
+
+}
+
+
+
+function showChunk(){
+
+if(chunks.length==0)return
+
+document.getElementById("reader").innerText=chunks[currentIndex]
+
+}
+
+
+
+function nextChunk(){
+
+if(currentIndex<chunks.length-1){
+
+currentIndex++
+
+showChunk()
+
+}
+
+}
+
+
+
+function prevChunk(){
+
+if(currentIndex>0){
+
+currentIndex--
+
+showChunk()
+
+}
+
+}
+
+
+
+function parseChunks(text){
+
+// 수동 chunk
+
+if(text.includes("(한국어 번역)")){
+
+return text.split("(한국어 번역)").map(x=>x.trim()).filter(x=>x)
+
+}
+
+
+
+// 슬래시 구분
+
+if(text.includes("/")){
+
+return text.split("/").map(x=>x.trim()).filter(x=>x)
+
+}
+
+
+
+// 인용부호 보호
+
+text=text
+
+.replace(/\.\"/g,"__DOTQUOTE__")
+
+.replace(/\.”/g,"__DOTQUOTE__")
+
+.replace(/\.\'/g,"__DOTSQUOTE__")
+
+.replace(/\.’/g,"__DOTSQUOTE__")
+
+
+
+// 전치사구 보호
+
+text=text.replace(
+
+/\b(about|for|with|to|from|in|on|at|by|of)\s+[^\.,;:]+/gi,
+
+match=>"__PHRASE__"+match+"__END__"
+
+)
+
+
+
+// 문장부호 기준 분리
+
+text=text
+
+.replace(/,/g,"\n")
+
+.replace(/;/g,"\n")
+
+.replace(/:/g,"\n")
+
+.replace(/—/g,"\n")
+
+.replace(/\./g,"\n")
+
+
+
+// 보호 구문 복구
+
+text=text
+
+.replace(/__DOTQUOTE__/g,".\"")
+
+.replace(/__DOTSQUOTE__/g,".'")
+
+.replace(/__PHRASE__/g,"")
+
+.replace(/__END__/g,"")
+
+
+
+let arr=text.split("\n")
+
+let result=[]
+
+arr.forEach(x=>{
+
+x=x.trim()
+
+if(x.length>0)result.push(x)
+
+})
+
+return result
+
+}
+
+
+
+function prepareTTS(text){
+
+return text
+
+.replace(/[.,;:—()]/g,"")
+
+.replace(/[가-힣]/g,"")
+
+}
+
+
+
+function speakChunk(){
+
+let text=chunks[currentIndex]
+
+let cleaned=prepareTTS(text)
+
+let u=new SpeechSynthesisUtterance(cleaned)
+
+let voices=speechSynthesis.getVoices()
+
+let us=voices.find(v=>v.lang=="en-US")
+
+if(us)u.voice=us
+
+u.lang="en-US"
+
+speechSynthesis.speak(u)
+
+}
+
+</script>
+
+</body>
+
+</html>
