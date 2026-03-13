@@ -1,96 +1,106 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+
 <meta charset="UTF-8">
-<title>Smart Reader V21</title>
+
+<title>Smart Reader V22</title>
 
 <style>
 
 body{
-font-family: Arial, sans-serif;
+font-family:Arial;
 text-align:center;
-margin:0;
-background:#f4f6f8;
+background:#f2f4f8;
 }
 
 #reader{
-font-size:40px;
-margin-top:150px;
-padding:40px;
-line-height:1.5;
-}
 
-button{
-font-size:18px;
-padding:12px 20px;
-margin:10px;
-cursor:pointer;
+font-size:42px;
+
+margin-top:150px;
+
+padding:40px;
+
+line-height:1.6;
+
 }
 
 textarea{
+
 width:90%;
+
 height:150px;
+
 font-size:16px;
-margin-top:20px;
+
+}
+
+button{
+
+font-size:18px;
+
+padding:12px 20px;
+
+margin:8px;
+
 }
 
 </style>
+
 </head>
 
 <body>
 
-<h2>Smart Reader V21</h2>
+<h2>Smart Reader V22</h2>
 
-<textarea id="inputText" placeholder="Paste your text here"></textarea>
+<textarea id="inputText"></textarea>
+
 <br>
 
-<button onclick="loadText()">Load Text</button>
+<button onclick="loadText()">Load</button>
+
 <button onclick="prevChunk()">Prev</button>
+
 <button onclick="nextChunk()">Next</button>
+
 <button onclick="speakChunk()">TTS</button>
 
 <div id="reader"></div>
 
 <script>
 
-let chunks = []
-let currentIndex = 0
+let chunks=[]
+let currentIndex=0
 
-// -------------------------------
-// 텍스트 로딩
-// -------------------------------
 
 function loadText(){
 
-let raw = document.getElementById("inputText").value
+let text=document.getElementById("inputText").value
 
-chunks = splitChunks(raw)
+chunks=parseChunks(text)
 
-currentIndex = 0
+currentIndex=0
 
 showChunk()
 
 }
 
-// -------------------------------
-// Chunk 표시
-// -------------------------------
+
 
 function showChunk(){
 
-if(chunks.length === 0) return
+if(chunks.length==0)return
 
-document.getElementById("reader").innerText = chunks[currentIndex]
+document.getElementById("reader").innerText=chunks[currentIndex]
 
 }
 
-// -------------------------------
-// 다음 / 이전
-// -------------------------------
+
 
 function nextChunk(){
 
-if(currentIndex < chunks.length-1){
+if(currentIndex<chunks.length-1){
 
 currentIndex++
 
@@ -100,9 +110,11 @@ showChunk()
 
 }
 
+
+
 function prevChunk(){
 
-if(currentIndex > 0){
+if(currentIndex>0){
 
 currentIndex--
 
@@ -112,50 +124,95 @@ showChunk()
 
 }
 
-// -------------------------------
-// Chunk 분리
-// -------------------------------
 
-function splitChunks(text){
 
-// 1. (한국어 번역) 기준 분리
+function parseChunks(text){
+
+// 수동 chunk
+
 if(text.includes("(한국어 번역)")){
 
 return text.split("(한국어 번역)").map(x=>x.trim()).filter(x=>x)
 
 }
 
-// 2. / 표시 기준 분리
+
+
+// 슬래시 구분
+
 if(text.includes("/")){
 
 return text.split("/").map(x=>x.trim()).filter(x=>x)
 
 }
 
-// 3. 자동 AI 구분 (문장부호 기반)
 
-let temp = text
+
+// 인용부호 보호
+
+text=text
+
+.replace(/\.\"/g,"__DOTQUOTE__")
+
+.replace(/\.”/g,"__DOTQUOTE__")
+
+.replace(/\.\'/g,"__DOTSQUOTE__")
+
+.replace(/\.’/g,"__DOTSQUOTE__")
+
+
+
+// 전치사구 보호
+
+text=text.replace(
+
+/\b(about|for|with|to|from|in|on|at|by|of)\s+[^\.,;:]+/gi,
+
+match=>"__PHRASE__"+match+"__END__"
+
+)
+
+
+
+// 문장부호 기준 분리
+
+text=text
+
 .replace(/,/g,"\n")
+
 .replace(/;/g,"\n")
+
 .replace(/:/g,"\n")
+
 .replace(/—/g,"\n")
-.replace(/\(/g,"\n")
-.replace(/\)/g,"\n")
+
 .replace(/\./g,"\n")
 
-let lines = temp.split("\n")
 
-let result = []
 
-lines.forEach(line=>{
+// 보호 구문 복구
 
-line=line.trim()
+text=text
 
-if(line.length>0){
+.replace(/__DOTQUOTE__/g,".\"")
 
-result.push(line)
+.replace(/__DOTSQUOTE__/g,".'")
 
-}
+.replace(/__PHRASE__/g,"")
+
+.replace(/__END__/g,"")
+
+
+
+let arr=text.split("\n")
+
+let result=[]
+
+arr.forEach(x=>{
+
+x=x.trim()
+
+if(x.length>0)result.push(x)
 
 })
 
@@ -163,48 +220,42 @@ return result
 
 }
 
-// -------------------------------
-// TTS 전처리 (문장부호 제거)
-// -------------------------------
 
-function prepareTextForTTS(text){
+
+function prepareTTS(text){
 
 return text
-.replace(/[.,;:—\-()]/g,"")
-.replace(/\s+/g," ")
-.trim()
+
+.replace(/[.,;:—()]/g,"")
+
+.replace(/[가-힣]/g,"")
 
 }
 
-// -------------------------------
-// TTS 실행
-// -------------------------------
+
 
 function speakChunk(){
 
-let text = chunks[currentIndex]
+let text=chunks[currentIndex]
 
-let cleaned = prepareTextForTTS(text)
+let cleaned=prepareTTS(text)
 
-let utter = new SpeechSynthesisUtterance(cleaned)
+let u=new SpeechSynthesisUtterance(cleaned)
 
-let voices = speechSynthesis.getVoices()
+let voices=speechSynthesis.getVoices()
 
-let usVoice = voices.find(v=>v.lang==="en-US")
+let us=voices.find(v=>v.lang=="en-US")
 
-if(usVoice){
+if(us)u.voice=us
 
-utter.voice = usVoice
+u.lang="en-US"
 
-}
-
-utter.lang = "en-US"
-
-speechSynthesis.speak(utter)
+speechSynthesis.speak(u)
 
 }
 
 </script>
 
 </body>
+
 </html>
