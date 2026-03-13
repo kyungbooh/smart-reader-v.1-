@@ -1,329 +1,303 @@
+```html
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Smart Reader V17</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<title>Smart Reader V19</title>
 
 <style>
 
 body{
 font-family:Arial;
-background:#f5f7ff;
-text-align:center;
+margin:40px;
+background:#f4f6f8;
 }
 
-#reader{
-font-size:110px;
-margin-top:80px;
-height:150px;
-font-weight:bold;
-}
-
-textarea{
-width:80%;
-height:120px;
-font-size:18px;
-margin-top:15px;
+h1{
+color:#2c3e50;
 }
 
 button{
-padding:10px 16px;
 margin:5px;
-font-size:15px;
+padding:8px 14px;
+font-size:14px;
+cursor:pointer;
 }
 
-#preview{
-margin-top:30px;
-font-size:28px;
-line-height:1.7;
+#sentenceDisplay{
+margin:20px 0;
+background:white;
+padding:20px;
+border-radius:8px;
+min-height:80px;
+line-height:1.6;
 }
 
-.orp{
-color:red;
-font-weight:bold;
+.chunk{
+padding:6px;
+margin:6px 0;
+background:#e8f0fe;
+border-radius:6px;
+font-size:22px;
 }
 
-.section{
-margin-top:20px;
+textarea{
+font-size:18px;
 }
 
 </style>
-
 </head>
 
 <body>
 
-<h1>Smart Reader V17</h1>
+<h1>Smart Reader V19</h1>
 
-<div id="reader">Ready</div>
+<input type="file" id="fileInput">
+<button onclick="deleteFile()">파일 삭제</button>
 
-<div class="section">
+<hr>
 
-<h3>Teacher Material Input</h3>
-
-<textarea id="textInput">
-Yesterday / Tom / read / a book / quickly / in the library
-</textarea>
-
-<br>
-
-<input type="file" id="txtFile" accept=".txt">
-<button onclick="loadTXT()">Load TXT</button>
-
-<input type="file" id="pdfFile" accept=".pdf">
-<button onclick="loadPDF()">Load PDF</button>
-
+<div>
+문장 <span id="counter"></span>
 </div>
 
-<div class="section">
-
-<button onclick="preview()">Preview</button> <button onclick="analyze()">AI Analyze</button>
-
+<div id="sentenceDisplay">
+TXT 파일을 업로드하세요
 </div>
 
-<div class="section">
+<button onclick="editSentence()">편집</button>
+<button onclick="saveSentence()">저장</button>
 
-<button onclick="start()">Start</button> <button onclick="pause()">Pause</button> <button onclick="stop()">Stop</button>
+<hr>
 
-<button onclick="stepNext()">Next ▶</button> <button onclick="stepPrev()">◀ Prev</button>
+<select id="voiceSelect"></select>
 
-</div>
+<button onclick="speakSentence()">문장 TTS</button>
+<button onclick="speakChunks()">청크 TTS</button>
 
-Speed
+<hr>
 
-<input type="range" min="400" max="4000" value="1800" id="speed">
+<button onclick="prevSentence()">이전 문장</button>
+<button onclick="nextSentence()">다음 문장</button>
 
-<div id="preview"></div>
+<hr>
+
+<button onclick="copySlide()">PPT 복사용 복사</button>
+<button onclick="downloadFile()">수정 TXT 저장</button>
 
 <script>
 
-let chunks=[]
-let index=0
-let timer=null
-let paused=false
+let sentences=[];
+let currentIndex=0;
+let voices=[];
 
-function parse(){
+document.getElementById("fileInput").addEventListener("change",function(e){
 
-let text=document.getElementById("textInput").value
+const file=e.target.files[0];
+if(!file) return;
 
-chunks=text.split("/")
+const reader=new FileReader();
 
-}
+reader.onload=function(event){
 
-function ORP(word){
+const text=event.target.result;
 
-let mid=Math.floor(word.length/2)
+sentences=text
+.split(/\n+/)
+.map(s=>s.trim())
+.filter(s=>s.length>0);
 
-return word.substring(0,mid)
-+
-"<span class='orp'>"
-+
-word[mid]
-+
-"</span>"
-+
-word.substring(mid+1)
+currentIndex=0;
 
-}
+showSentence();
 
-function render(chunk){
+};
 
-let words=chunk.trim().split(" ")
+reader.readAsText(file);
 
-let result=""
+});
 
-words.forEach(w=>{
-result+=ORP(w)+" "
-})
 
-return result
+function formatChunks(sentence){
+
+let chunks=sentence.split("/");
+
+return chunks.map(c =>
+"<div class='chunk'>"+c.trim()+"</div>"
+).join("");
 
 }
 
-function showChunk(){
 
-if(index<0) index=0
-if(index>=chunks.length) index=chunks.length-1
+function showSentence(){
 
-document.getElementById("reader").innerHTML=
-render(chunks[index])
+if(sentences.length==0) return;
 
-}
+const display=document.getElementById("sentenceDisplay");
 
-function run(){
+display.innerHTML=formatChunks(sentences[currentIndex]);
 
-if(paused) return
-
-index++
-
-if(index>=chunks.length){
-
-clearInterval(timer)
-return
+document.getElementById("counter").innerText=
+(currentIndex+1)+" / "+sentences.length;
 
 }
 
-showChunk()
+
+function nextSentence(){
+
+if(currentIndex < sentences.length-1){
+
+currentIndex++;
+showSentence();
 
 }
 
-function start(){
+}
 
-parse()
 
-if(timer) clearInterval(timer)
+function prevSentence(){
 
-index=0
+if(currentIndex > 0){
 
-showChunk()
-
-let speed=document.getElementById("speed").value
-
-timer=setInterval(run,speed)
-
-paused=false
+currentIndex--;
+showSentence();
 
 }
 
-function pause(){
+}
 
-paused=true
+
+function editSentence(){
+
+const display=document.getElementById("sentenceDisplay");
+
+display.innerHTML=
+`<textarea id="editor" rows="5" style="width:100%">
+${sentences[currentIndex]}
+</textarea>`;
 
 }
 
-function stop(){
 
-clearInterval(timer)
-timer=null
-index=0
-paused=false
-document.getElementById("reader").innerHTML="Ready"
+function saveSentence(){
 
-}
+const newText=document.getElementById("editor").value;
 
-function stepNext(){
+sentences[currentIndex]=newText;
 
-if(chunks.length===0) parse()
-
-index++
-
-if(index>=chunks.length) index=chunks.length-1
-
-showChunk()
+showSentence();
 
 }
 
-function stepPrev(){
 
-if(chunks.length===0) parse()
+function deleteFile(){
 
-index--
+sentences=[];
+currentIndex=0;
 
-if(index<0) index=0
+document.getElementById("sentenceDisplay").innerHTML=
+"파일이 삭제되었습니다.";
 
-showChunk()
-
-}
-
-function rainbowColor(text){
-
-let t=text.toLowerCase().trim()
-
-if(["yesterday","today","tomorrow"].includes(t))
-return "<span style='color:purple'>"+text+"</span>"
-
-if(t.startsWith("in ") || t.startsWith("at ") || t.startsWith("on "))
-return "<span style='color:indigo'>"+text+"</span>"
-
-if(["quickly","slowly","carefully"].includes(t))
-return "<span style='color:blue'>"+text+"</span>"
-
-if(["read","eat","make","see","play"].includes(t))
-return "<span style='color:gold'>"+text+"</span>"
-
-if(text.split(" ").length>1 && !text.startsWith("in "))
-return "<span style='color:green'>"+text+"</span>"
-
-return "<span style='color:orange'>"+text+"</span>"
+document.getElementById("counter").innerText="";
 
 }
 
-function preview(){
 
-parse()
+function downloadFile(){
 
-let html=""
+const content=sentences.join("\n");
 
-chunks.forEach(c=>{
+const blob=new Blob([content],{type:"text/plain"});
 
-html+=rainbowColor(c)+"<br>"
+const a=document.createElement("a");
 
-})
+a.href=URL.createObjectURL(blob);
 
-document.getElementById("preview").innerHTML=html
+a.download="edited_text.txt";
 
-}
-
-function analyze(){
-
-let text=document.getElementById("textInput").value
-
-text=text.replace(/\./g,"")
-
-let words=text.split(" ")
-
-if(words.length<3) return
-
-let subject=words[0]
-
-let verb=words[1]
-
-let rest=words.slice(2).join(" ")
-
-let chunk=subject+" / "+verb+" / "+rest
-
-document.getElementById("textInput").value=chunk
+a.click();
 
 }
 
-function loadTXT(){
 
-let file=document.getElementById("txtFile").files[0]
+function loadVoices(){
 
-let reader=new FileReader()
+voices=speechSynthesis.getVoices();
 
-reader.onload=function(e){
+const select=document.getElementById("voiceSelect");
 
-document.getElementById("textInput").value=e.target.result
+select.innerHTML="";
+
+voices.forEach((voice,i)=>{
+
+const option=document.createElement("option");
+
+option.value=i;
+option.text=voice.name+" ("+voice.lang+")";
+
+select.appendChild(option);
+
+});
 
 }
 
-reader.readAsText(file)
+speechSynthesis.onvoiceschanged=loadVoices;
+
+
+function speakSentence(){
+
+if(sentences.length==0) return;
+
+const utter=new SpeechSynthesisUtterance(sentences[currentIndex]);
+
+const voiceIndex=document.getElementById("voiceSelect").value;
+
+utter.voice=voices[voiceIndex];
+
+speechSynthesis.speak(utter);
 
 }
 
-async function loadPDF(){
 
-const file=document.getElementById("pdfFile").files[0]
+function speakChunks(){
 
-const arrayBuffer=await file.arrayBuffer()
+let chunks=sentences[currentIndex].split("/");
 
-const pdf=await pdfjsLib.getDocument(arrayBuffer).promise
+let i=0;
 
-const page=await pdf.getPage(1)
+function speakNext(){
 
-const textContent=await page.getTextContent()
+if(i>=chunks.length) return;
 
-let text=""
+let utter=new SpeechSynthesisUtterance(chunks[i]);
 
-textContent.items.forEach(item=>{
-text+=item.str+" "
-})
+utter.voice=voices[
+document.getElementById("voiceSelect").value
+];
 
-document.getElementById("textInput").value=text
+utter.onend=function(){
+i++;
+speakNext();
+};
+
+speechSynthesis.speak(utter);
+
+}
+
+speakNext();
+
+}
+
+
+function copySlide(){
+
+let text=sentences[currentIndex]
+.split("/")
+.join("\n");
+
+navigator.clipboard.writeText(text);
+
+alert("슬라이드용 텍스트 복사 완료");
 
 }
 
@@ -331,3 +305,4 @@ document.getElementById("textInput").value=text
 
 </body>
 </html>
+```
