@@ -17,32 +17,24 @@ h1{
 color:#2c3e50;
 }
 
-button{
-margin:5px;
-padding:8px 14px;
-font-size:14px;
-cursor:pointer;
-}
-
-#display{
-margin:40px 0;
+#reader{
 background:white;
-padding:40px;
-border-radius:10px;
-min-height:120px;
-text-align:center;
-}
-
-.chunk{
+padding:50px;
+border-radius:12px;
 font-size:36px;
-line-height:1.6;
-color:#2c3e50;
+text-align:center;
+min-height:120px;
 }
 
-.korean{
-margin-top:15px;
+.kor{
 font-size:22px;
 color:#888;
+margin-top:10px;
+}
+
+button{
+margin:10px;
+padding:8px 14px;
 }
 
 </style>
@@ -50,130 +42,122 @@ color:#888;
 
 <body>
 
-<h1>Smart Reader V21 (Chunk Mode)</h1>
+<h1>Smart Reader V21</h1>
 
 <input type="file" id="fileInput">
-<button onclick="deleteFile()">파일 삭제</button>
 
-<hr>
+<button onclick="toggleKor()">한글 접기/펼치기</button>
+
+<div id="reader">파일을 업로드하세요</div>
 
 <div>
-Chunk <span id="counter"></span>
+<button onclick="prevChunk()">◀ Prev</button>
+<button onclick="speakChunk()">🔊 TTS</button>
+<button onclick="nextChunk()">Next ▶</button>
 </div>
-
-<div id="display">
-파일을 업로드하세요
-</div>
-
-<button onclick="toggleKorean()">한글 접기/펼치기</button>
-
-<hr>
-
-<select id="voiceSelect"></select>
-<button onclick="speakChunk()">TTS 읽기</button>
-
-<hr>
-
-<button onclick="prevChunk()">이전 Chunk</button>
-<button onclick="nextChunk()">다음 Chunk</button>
-
-<hr>
-
-<button onclick="downloadChunks()">Chunk TXT 저장</button>
 
 <script>
 
-let chunks=[];
-let currentIndex=0;
-let voices=[];
-let showKorean=true;
+let chunks=[]
+let current=0
+let showKor=true
+let voices=[]
 
-document.getElementById("fileInput").addEventListener("change",function(e){
+document.getElementById("fileInput").addEventListener("change",loadFile)
 
-const file=e.target.files[0];
-if(!file) return;
+function loadFile(e){
 
-const reader=new FileReader();
+let file=e.target.files[0]
+let reader=new FileReader()
 
-reader.onload=function(event){
+reader.onload=function(){
+processText(reader.result)
+}
 
-parseText(event.target.result);
+reader.readAsText(file)
 
-};
+}
 
-reader.readAsText(file);
+function processText(text){
 
-});
+chunks=[]
 
-
-function parseText(text){
-
-chunks=[];
-
-let lines=text
-.split(/\n+/)
-.map(l=>l.trim())
-.filter(l=>l.length>0);
+let lines=text.split("\n")
 
 lines.forEach(line=>{
 
-let parts=line.split("/");
+line=line.trim()
+if(line==="") return
 
-parts.forEach(p=>{
-let c=p.trim();
-if(c.length>0) chunks.push(c);
-});
+// / 수동 chunk
+if(line.includes("/")){
 
-});
+line.split("/").forEach(c=>{
+chunks.push(c.trim())
+})
 
-currentIndex=0;
+return
+}
 
-showChunk();
+// 괄호 번역
+let match=line.match(/(.*)\((.*)\)/)
+
+if(match){
+
+chunks.push(match[1].trim())
+chunks.push("("+match[2].trim()+")")
+return
 
 }
 
+// punctuation 분리
+let p=line
+.replace(/,/g,",\n")
+.replace(/;/g,";\n")
+.replace(/:/g,":\n")
+.replace(/\./g,".\n")
+.replace(/—/g,"\n—\n")
+
+let parts=p.split("\n")
+
+parts.forEach(c=>{
+
+c=c.trim()
+if(c!=="") chunks.push(c)
+
+})
+
+})
+
+current=0
+showChunk()
+
+}
 
 function showChunk(){
 
-if(chunks.length===0) return;
+if(chunks.length===0) return
 
-let chunk=chunks[currentIndex];
+let text=chunks[current]
 
-let koreanMatch=
-chunk.match(/\(([^)]*[가-힣][^)]*)\)/);
+let html=text
 
-let english=chunk;
-let korean="";
+if(text.includes("(") && !showKor){
 
-if(koreanMatch){
-
-korean=koreanMatch[0];
-english=chunk.replace(koreanMatch[0],"");
+html=""
 
 }
 
-let html="<div class='chunk'>"+english.trim()+"</div>";
-
-if(showKorean && korean){
-
-html+="<div class='korean'>"+korean+"</div>";
+document.getElementById("reader").innerHTML=html
 
 }
-
-document.getElementById("display").innerHTML=html;
-
-document.getElementById("counter").innerText=
-(currentIndex+1)+" / "+chunks.length;
-
-}
-
 
 function nextChunk(){
 
-if(currentIndex < chunks.length-1){
+if(current<chunks.length-1){
 
-currentIndex++;
-showChunk();
+current++
+showChunk()
 
 }
 
@@ -181,104 +165,45 @@ showChunk();
 
 function prevChunk(){
 
-if(currentIndex>0){
+if(current>0){
 
-currentIndex--;
-showChunk();
-
-}
+current--
+showChunk()
 
 }
 
-
-function toggleKorean(){
-
-showKorean=!showKorean;
-
-showChunk();
-
 }
 
+function toggleKor(){
 
-function removeKorean(text){
-
-return text
-.replace(/\([^)]*[가-힣][^)]*\)/g,"")
-.replace(/[ㄱ-ㅎㅏ-ㅣ가-힣]/g,"");
+showKor=!showKor
+showChunk()
 
 }
-
 
 function speakChunk(){
 
-let text=removeKorean(chunks[currentIndex]);
+let text=chunks[current]
 
-const utter=new SpeechSynthesisUtterance(text);
+text=text.replace(/\(.*?\)/g,"")
 
-const voiceIndex=
-document.getElementById("voiceSelect").value;
+let utter=new SpeechSynthesisUtterance(text)
 
-utter.voice=voices[voiceIndex];
+let voice=voices.find(v=>v.lang==="en-US")
 
-speechSynthesis.speak(utter);
+if(voice) utter.voice=voice
+
+speechSynthesis.speak(utter)
 
 }
-
 
 function loadVoices(){
 
-voices=speechSynthesis
-.getVoices()
-.filter(v=>v.lang==="en-US");
-
-let select=document.getElementById("voiceSelect");
-
-select.innerHTML="";
-
-voices.forEach((v,i)=>{
-
-let option=document.createElement("option");
-
-option.value=i;
-option.text=v.name+" (US)";
-
-select.appendChild(option);
-
-});
+voices=speechSynthesis.getVoices()
 
 }
 
-speechSynthesis.onvoiceschanged=loadVoices;
-
-
-function deleteFile(){
-
-chunks=[];
-currentIndex=0;
-
-document.getElementById("display").innerHTML=
-"파일이 삭제되었습니다.";
-
-document.getElementById("counter").innerText="";
-
-}
-
-
-function downloadChunks(){
-
-let content=chunks.join("\n");
-
-const blob=new Blob([content],{type:"text/plain"});
-
-const a=document.createElement("a");
-
-a.href=URL.createObjectURL(blob);
-
-a.download="chunk_text.txt";
-
-a.click();
-
-}
+speechSynthesis.onvoiceschanged=loadVoices
 
 </script>
 
