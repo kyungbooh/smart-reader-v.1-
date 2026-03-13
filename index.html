@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Smart Reader V19</title>
+<title>Smart Reader V20</title>
 
 <style>
 
@@ -29,7 +29,7 @@ margin:20px 0;
 background:white;
 padding:20px;
 border-radius:8px;
-min-height:80px;
+min-height:100px;
 line-height:1.6;
 }
 
@@ -41,6 +41,12 @@ border-radius:6px;
 font-size:22px;
 }
 
+.korean{
+color:#777;
+font-size:18px;
+margin-top:10px;
+}
+
 textarea{
 font-size:18px;
 }
@@ -50,7 +56,7 @@ font-size:18px;
 
 <body>
 
-<h1>Smart Reader V19</h1>
+<h1>Smart Reader V20</h1>
 
 <input type="file" id="fileInput">
 <button onclick="deleteFile()">파일 삭제</button>
@@ -67,6 +73,8 @@ TXT 파일을 업로드하세요
 
 <button onclick="editSentence()">편집</button>
 <button onclick="saveSentence()">저장</button>
+
+<button onclick="toggleKorean()">한글 접기/펼치기</button>
 
 <hr>
 
@@ -90,6 +98,7 @@ TXT 파일을 업로드하세요
 let sentences=[];
 let currentIndex=0;
 let voices=[];
+let showKorean=true;
 
 document.getElementById("fileInput").addEventListener("change",function(e){
 
@@ -118,13 +127,42 @@ reader.readAsText(file);
 });
 
 
+function removeKoreanForTTS(text){
+
+return text
+.replace(/\([^)]*[가-힣][^)]*\)/g,"")
+.replace(/[ㄱ-ㅎㅏ-ㅣ가-힣]/g,"");
+
+}
+
+
 function formatChunks(sentence){
 
-let chunks=sentence.split("/");
+let englishPart=sentence;
+let koreanPart="";
 
-return chunks.map(c =>
+let match=sentence.match(/\(([^)]*[가-힣][^)]*)\)/);
+
+if(match){
+
+koreanPart=match[0];
+englishPart=sentence.replace(match[0],"");
+
+}
+
+let chunks=englishPart.split("/");
+
+let html=chunks.map(c=>
 "<div class='chunk'>"+c.trim()+"</div>"
 ).join("");
+
+if(showKorean && koreanPart){
+
+html+="<div class='korean'>"+koreanPart+"</div>";
+
+}
+
+return html;
 
 }
 
@@ -220,9 +258,20 @@ a.click();
 }
 
 
+function toggleKorean(){
+
+showKorean=!showKorean;
+
+showSentence();
+
+}
+
+
 function loadVoices(){
 
-voices=speechSynthesis.getVoices();
+voices=speechSynthesis
+.getVoices()
+.filter(v=>v.lang==="en-US");
 
 const select=document.getElementById("voiceSelect");
 
@@ -233,7 +282,7 @@ voices.forEach((voice,i)=>{
 const option=document.createElement("option");
 
 option.value=i;
-option.text=voice.name+" ("+voice.lang+")";
+option.text=voice.name+" (US)";
 
 select.appendChild(option);
 
@@ -246,9 +295,9 @@ speechSynthesis.onvoiceschanged=loadVoices;
 
 function speakSentence(){
 
-if(sentences.length==0) return;
+let text=removeKoreanForTTS(sentences[currentIndex]);
 
-const utter=new SpeechSynthesisUtterance(sentences[currentIndex]);
+const utter=new SpeechSynthesisUtterance(text);
 
 const voiceIndex=document.getElementById("voiceSelect").value;
 
@@ -261,7 +310,9 @@ speechSynthesis.speak(utter);
 
 function speakChunks(){
 
-let chunks=sentences[currentIndex].split("/");
+let text=removeKoreanForTTS(sentences[currentIndex]);
+
+let chunks=text.split("/");
 
 let i=0;
 
@@ -276,8 +327,10 @@ document.getElementById("voiceSelect").value
 ];
 
 utter.onend=function(){
+
 i++;
 speakNext();
+
 };
 
 speechSynthesis.speak(utter);
@@ -297,7 +350,7 @@ let text=sentences[currentIndex]
 
 navigator.clipboard.writeText(text);
 
-alert("슬라이드용 텍스트 복사 완료");
+alert("슬라이드 복사 완료");
 
 }
 
