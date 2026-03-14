@@ -1,105 +1,111 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <meta charset="UTF-8">
-
-<title>Smart Reader V23</title>
+<title>Smart Reader V24</title>
 
 <style>
 
 body{
 font-family:Arial;
 text-align:center;
-background:#f2f4f8;
+background:#f3f5f9;
 }
 
 #reader{
-
 font-size:44px;
-
-margin-top:140px;
-
-padding:40px;
-
+margin-top:120px;
+padding:30px;
 line-height:1.6;
-
 }
 
+.chunk{
+padding:6px 10px;
+border-radius:6px;
+}
+
+.current{
+background:#ffd54f;
+}
+
+.subject{color:#1976d2;}
+.verb{color:#d32f2f;}
+.object{color:#388e3c;}
+
 textarea{
-
 width:90%;
-
-height:150px;
-
+height:140px;
 font-size:16px;
-
 }
 
 button{
-
 font-size:18px;
-
-padding:10px 18px;
-
 margin:6px;
-
-}
-
-#fullSentence{
-
-font-size:18px;
-
-color:#666;
-
-margin-top:30px;
-
+padding:10px 18px;
 }
 
 </style>
-
 </head>
 
 <body>
 
-<h2>Smart Reader V23</h2>
+<h2>Smart Reader V24</h2>
+
+<input type="file" id="fileInput">
+<button onclick="loadFile()">Upload File</button>
+
+<br><br>
 
 <textarea id="inputText"></textarea>
 
 <br>
 
-<button onclick="loadText()">Load</button>
-
+<button onclick="loadText()">Analyze</button>
 <button onclick="prevChunk()">Prev</button>
-
 <button onclick="nextChunk()">Next</button>
-
 <button onclick="speakChunk()">TTS</button>
-
 <button onclick="autoPlay()">Auto Play</button>
-
 <button onclick="stopAuto()">Stop</button>
 
-<button onclick="showSentence()">Show Sentence</button>
-
 <div id="reader"></div>
-
-<div id="fullSentence"></div>
 
 <script>
 
 let chunks=[]
 let currentIndex=0
 let autoTimer=null
-let originalText=""
+
+
+
+function loadFile(){
+
+let file=document.getElementById("fileInput").files[0]
+
+if(!file)return
+
+let reader=new FileReader()
+
+reader.onload=function(e){
+
+let text=e.target.result
+
+document.getElementById("inputText").value=text
+
+loadText()
+
+}
+
+reader.readAsText(file)
+
+}
 
 
 
 function loadText(){
 
-originalText=document.getElementById("inputText").value
+let text=document.getElementById("inputText").value
 
-chunks=parseChunks(originalText)
+chunks=parseChunks(text)
 
 currentIndex=0
 
@@ -113,7 +119,19 @@ function showChunk(){
 
 if(chunks.length==0)return
 
-document.getElementById("reader").innerText=chunks[currentIndex]
+let display=""
+
+chunks.forEach((c,i)=>{
+
+let cls="chunk"
+
+if(i==currentIndex)cls+=" current"
+
+display+=`<div class="${cls}">${c}</div>`
+
+})
+
+document.getElementById("reader").innerHTML=display
 
 }
 
@@ -157,8 +175,6 @@ speakChunk()
 
 nextChunk()
 
-if(currentIndex>=chunks.length-1)stopAuto()
-
 },3000)
 
 }
@@ -179,15 +195,9 @@ autoTimer=null
 
 
 
-function showSentence(){
-
-document.getElementById("fullSentence").innerText=originalText
-
-}
-
-
-
 function parseChunks(text){
+
+// 수동 chunk
 
 if(text.includes("(한국어 번역)")){
 
@@ -197,35 +207,19 @@ return text.split("(한국어 번역)").map(x=>x.trim()).filter(x=>x)
 
 
 
-if(text.includes("/")){
-
-return text.split("/").map(x=>x.trim()).filter(x=>x)
-
-}
-
-
-
-text=text
-
-.replace(/\.\"/g,"__DOTQUOTE__")
-
-.replace(/\.”/g,"__DOTQUOTE__")
-
-.replace(/\.\'/g,"__DOTSQUOTE__")
-
-.replace(/\.’/g,"__DOTSQUOTE__")
-
-
+// 전치사구 보호
 
 text=text.replace(
 
 /\b(about|for|with|to|from|in|on|at|by|of)\s+[^\.,;:]+/gi,
 
-m=>"__PHRASE__"+m+"__END__"
+m=>"__P__"+m+"__END__"
 
 )
 
 
+
+// 문장부호 분리
 
 text=text
 
@@ -243,11 +237,7 @@ text=text
 
 text=text
 
-.replace(/__DOTQUOTE__/g,".\"")
-
-.replace(/__DOTSQUOTE__/g,".'")
-
-.replace(/__PHRASE__/g,"")
+.replace(/__P__/g,"")
 
 .replace(/__END__/g,"")
 
@@ -261,7 +251,7 @@ arr.forEach(x=>{
 
 x=x.trim()
 
-if(x.length>0)result.push(x)
+if(x.length>0)result.push(analyzeSentence(x))
 
 })
 
@@ -271,9 +261,27 @@ return result
 
 
 
+function analyzeSentence(text){
+
+// 매우 단순한 SVO 표시
+
+let words=text.split(" ")
+
+if(words.length<3)return text
+
+return `<span class="subject">${words[0]}</span> 
+<span class="verb">${words[1]}</span> 
+<span class="object">${words.slice(2).join(" ")}</span>`
+
+}
+
+
+
 function prepareTTS(text){
 
 return text
+
+.replace(/<[^>]*>/g,"")
 
 .replace(/[.,;:—()]/g,"")
 
@@ -287,9 +295,9 @@ function speakChunk(){
 
 let text=chunks[currentIndex]
 
-let cleaned=prepareTTS(text)
+let clean=prepareTTS(text)
 
-let u=new SpeechSynthesisUtterance(cleaned)
+let u=new SpeechSynthesisUtterance(clean)
 
 let voices=speechSynthesis.getVoices()
 
