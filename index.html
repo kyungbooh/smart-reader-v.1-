@@ -4,7 +4,7 @@
 
 <meta charset="UTF-8">
 
-<title>Smart Reader V22</title>
+<title>Smart Reader V23</title>
 
 <style>
 
@@ -16,9 +16,9 @@ background:#f2f4f8;
 
 #reader{
 
-font-size:42px;
+font-size:44px;
 
-margin-top:150px;
+margin-top:140px;
 
 padding:40px;
 
@@ -40,9 +40,19 @@ button{
 
 font-size:18px;
 
-padding:12px 20px;
+padding:10px 18px;
 
-margin:8px;
+margin:6px;
+
+}
+
+#fullSentence{
+
+font-size:18px;
+
+color:#666;
+
+margin-top:30px;
 
 }
 
@@ -52,7 +62,7 @@ margin:8px;
 
 <body>
 
-<h2>Smart Reader V22</h2>
+<h2>Smart Reader V23</h2>
 
 <textarea id="inputText"></textarea>
 
@@ -66,19 +76,30 @@ margin:8px;
 
 <button onclick="speakChunk()">TTS</button>
 
+<button onclick="autoPlay()">Auto Play</button>
+
+<button onclick="stopAuto()">Stop</button>
+
+<button onclick="showSentence()">Show Sentence</button>
+
 <div id="reader"></div>
+
+<div id="fullSentence"></div>
 
 <script>
 
 let chunks=[]
 let currentIndex=0
+let autoTimer=null
+let originalText=""
+
 
 
 function loadText(){
 
-let text=document.getElementById("inputText").value
+originalText=document.getElementById("inputText").value
 
-chunks=parseChunks(text)
+chunks=parseChunks(originalText)
 
 currentIndex=0
 
@@ -126,9 +147,47 @@ showChunk()
 
 
 
-function parseChunks(text){
+function autoPlay(){
 
-// 수동 chunk
+stopAuto()
+
+autoTimer=setInterval(()=>{
+
+speakChunk()
+
+nextChunk()
+
+if(currentIndex>=chunks.length-1)stopAuto()
+
+},3000)
+
+}
+
+
+
+function stopAuto(){
+
+if(autoTimer){
+
+clearInterval(autoTimer)
+
+autoTimer=null
+
+}
+
+}
+
+
+
+function showSentence(){
+
+document.getElementById("fullSentence").innerText=originalText
+
+}
+
+
+
+function parseChunks(text){
 
 if(text.includes("(한국어 번역)")){
 
@@ -138,8 +197,6 @@ return text.split("(한국어 번역)").map(x=>x.trim()).filter(x=>x)
 
 
 
-// 슬래시 구분
-
 if(text.includes("/")){
 
 return text.split("/").map(x=>x.trim()).filter(x=>x)
@@ -147,8 +204,6 @@ return text.split("/").map(x=>x.trim()).filter(x=>x)
 }
 
 
-
-// 인용부호 보호
 
 text=text
 
@@ -162,19 +217,15 @@ text=text
 
 
 
-// 전치사구 보호
-
 text=text.replace(
 
 /\b(about|for|with|to|from|in|on|at|by|of)\s+[^\.,;:]+/gi,
 
-match=>"__PHRASE__"+match+"__END__"
+m=>"__PHRASE__"+m+"__END__"
 
 )
 
 
-
-// 문장부호 기준 분리
 
 text=text
 
@@ -189,8 +240,6 @@ text=text
 .replace(/\./g,"\n")
 
 
-
-// 보호 구문 복구
 
 text=text
 
