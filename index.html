@@ -2,57 +2,54 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Smart Reader V24</title>
+<title>Smart Reader V26</title>
 
 <style>
 
 body{
 font-family:Arial;
 text-align:center;
-background:#f3f5f9;
+background:#f4f6fa;
 }
 
 #reader{
 font-size:44px;
 margin-top:120px;
-padding:30px;
 line-height:1.6;
 }
 
 .chunk{
-padding:6px 10px;
+padding:6px;
+margin:4px;
 border-radius:6px;
 }
 
 .current{
-background:#ffd54f;
+background:#ffe082;
 }
-
-.subject{color:#1976d2;}
-.verb{color:#d32f2f;}
-.object{color:#388e3c;}
 
 textarea{
 width:90%;
-height:140px;
+height:150px;
 font-size:16px;
 }
 
 button{
 font-size:18px;
+padding:10px 16px;
 margin:6px;
-padding:10px 18px;
 }
 
 </style>
+
 </head>
 
 <body>
 
-<h2>Smart Reader V24</h2>
+<h2>Smart Reader V26</h2>
 
 <input type="file" id="fileInput">
-<button onclick="loadFile()">Upload File</button>
+<button onclick="loadFile()">Upload</button>
 
 <br><br>
 
@@ -60,38 +57,32 @@ padding:10px 18px;
 
 <br>
 
-<button onclick="loadText()">Analyze</button>
-<button onclick="prevChunk()">Prev</button>
-<button onclick="nextChunk()">Next</button>
-<button onclick="speakChunk()">TTS</button>
-<button onclick="autoPlay()">Auto Play</button>
-<button onclick="stopAuto()">Stop</button>
+<button onclick="analyze()">Analyze</button>
+<button onclick="prev()">Prev</button>
+<button onclick="next()">Next</button>
+<button onclick="speak()">TTS</button>
+<button onclick="autoPlay()">Auto</button>
+<button onclick="stop()">Stop</button>
 
 <div id="reader"></div>
 
 <script>
 
 let chunks=[]
-let currentIndex=0
-let autoTimer=null
-
-
+let index=0
+let timer=null
 
 function loadFile(){
 
 let file=document.getElementById("fileInput").files[0]
 
-if(!file)return
+if(!file) return
 
 let reader=new FileReader()
 
 reader.onload=function(e){
 
-let text=e.target.result
-
-document.getElementById("inputText").value=text
-
-loadText()
+document.getElementById("inputText").value=e.target.result
 
 }
 
@@ -101,63 +92,61 @@ reader.readAsText(file)
 
 
 
-function loadText(){
+function analyze(){
 
 let text=document.getElementById("inputText").value
 
 chunks=parseChunks(text)
 
-currentIndex=0
+index=0
 
-showChunk()
+show()
 
 }
 
 
 
-function showChunk(){
+function show(){
 
-if(chunks.length==0)return
-
-let display=""
+let html=""
 
 chunks.forEach((c,i)=>{
 
 let cls="chunk"
 
-if(i==currentIndex)cls+=" current"
+if(i===index) cls+=" current"
 
-display+=`<div class="${cls}">${c}</div>`
+html+=`<div class="${cls}">${c}</div>`
 
 })
 
-document.getElementById("reader").innerHTML=display
+document.getElementById("reader").innerHTML=html
 
 }
 
 
 
-function nextChunk(){
+function next(){
 
-if(currentIndex<chunks.length-1){
+if(index<chunks.length-1){
 
-currentIndex++
+index++
 
-showChunk()
-
-}
+show()
 
 }
 
+}
 
 
-function prevChunk(){
 
-if(currentIndex>0){
+function prev(){
 
-currentIndex--
+if(index>0){
 
-showChunk()
+index--
+
+show()
 
 }
 
@@ -167,13 +156,13 @@ showChunk()
 
 function autoPlay(){
 
-stopAuto()
+stop()
 
-autoTimer=setInterval(()=>{
+timer=setInterval(()=>{
 
-speakChunk()
+speak()
 
-nextChunk()
+next()
 
 },3000)
 
@@ -181,15 +170,9 @@ nextChunk()
 
 
 
-function stopAuto(){
+function stop(){
 
-if(autoTimer){
-
-clearInterval(autoTimer)
-
-autoTimer=null
-
-}
+clearInterval(timer)
 
 }
 
@@ -197,113 +180,100 @@ autoTimer=null
 
 function parseChunks(text){
 
-// 수동 chunk
+let chunks=[]
 
-if(text.includes("(한국어 번역)")){
+// -------------------
+// 1 따옴표 보호
+// -------------------
 
-return text.split("(한국어 번역)").map(x=>x.trim()).filter(x=>x)
+let quotes=[]
+let qIndex=0
 
-}
+text=text.replace(/“[^”]+”|\"[^\"]+\"/g,function(m){
+
+quotes.push(m)
+
+return "__QUOTE_"+(qIndex++)+"__"
+
+})
 
 
-
-// 전치사구 보호
+// -------------------
+// 2 전치사구 보호
+// -------------------
 
 text=text.replace(
 
-/\b(about|for|with|to|from|in|on|at|by|of)\s+[^\.,;:]+/gi,
+/\b(about|in|on|at|with|for|from|by|of)\s+[a-zA-Z\s]+/g,
 
-m=>"__P__"+m+"__END__"
+m=>"__PP__"+m+"__ENDPP__"
 
 )
 
 
-
-// 문장부호 분리
+// -------------------
+// 3 의미구 분리
+// -------------------
 
 text=text
 
-.replace(/,/g,"\n")
+.replace(/, /g,"\n")
 
-.replace(/;/g,"\n")
+.replace(/; /g,"\n")
 
-.replace(/:/g,"\n")
+.replace(/: /g,"\n")
 
-.replace(/—/g,"\n")
+.replace(/— /g,"\n")
 
 .replace(/\./g,"\n")
 
 
+// -------------------
+// 4 보호 해제
+// -------------------
 
-text=text
+quotes.forEach((q,i)=>{
 
-.replace(/__P__/g,"")
-
-.replace(/__END__/g,"")
-
-
-
-let arr=text.split("\n")
-
-let result=[]
-
-arr.forEach(x=>{
-
-x=x.trim()
-
-if(x.length>0)result.push(analyzeSentence(x))
+text=text.replace("__QUOTE_"+i+"__",q)
 
 })
 
-return result
+text=text
+
+.replace(/__PP__/g,"")
+
+.replace(/__ENDPP__/g,"")
+
+
+// -------------------
+// 5 배열 생성
+// -------------------
+
+text.split("\n").forEach(line=>{
+
+line=line.trim()
+
+if(line.length>0) chunks.push(line)
+
+})
+
+return chunks
 
 }
 
 
 
-function analyzeSentence(text){
+function speak(){
 
-// 매우 단순한 SVO 표시
+let text=chunks[index]
 
-let words=text.split(" ")
-
-if(words.length<3)return text
-
-return `<span class="subject">${words[0]}</span> 
-<span class="verb">${words[1]}</span> 
-<span class="object">${words.slice(2).join(" ")}</span>`
-
-}
-
-
-
-function prepareTTS(text){
-
-return text
-
-.replace(/<[^>]*>/g,"")
+text=text
 
 .replace(/[.,;:—()]/g,"")
 
 .replace(/[가-힣]/g,"")
 
-}
-
-
-
-function speakChunk(){
-
-let text=chunks[currentIndex]
-
-let clean=prepareTTS(text)
-
-let u=new SpeechSynthesisUtterance(clean)
-
-let voices=speechSynthesis.getVoices()
-
-let us=voices.find(v=>v.lang=="en-US")
-
-if(us)u.voice=us
+let u=new SpeechSynthesisUtterance(text)
 
 u.lang="en-US"
 
